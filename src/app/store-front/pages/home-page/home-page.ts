@@ -2,7 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { ProductCard } from '@products/components/product-card/product-card';
 import { ProductsService } from '@products/services/products.service';
-import { Pagination } from 'src/app/pagination/pagination';
+import { Pagination } from '@shared/pagination/pagination';
 
 @Component({
   selector: 'app-home-page',
