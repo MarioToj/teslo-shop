@@ -1,5 +1,5 @@
 import { SlicePipe } from '@angular/common';
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Product } from '@products/interfaces/product-response.interface';
 import { ProductImagePipe } from '@products/pipes/product-image-pipe';

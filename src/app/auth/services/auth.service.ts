@@ -45,6 +45,23 @@ export class AuthService {
       );
   }
 
+  register(
+    email: string,
+    password: string,
+    fullName: string
+  ): Observable<boolean> {
+    return this.http
+      .post<AuthResponse>(`${baseUrl}/auth/register`, {
+        email: email,
+        password: password,
+        fullName: fullName,
+      })
+      .pipe(
+        map((resp) => this.handleAuthSuccess(resp)),
+        catchError((error: any) => this.handleAuthError(error))
+      );
+  }
+
   checkStatus(): Observable<boolean> {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -69,7 +86,7 @@ export class AuthService {
     this._token.set(null);
     this._authStatus.set('not-authenticated');
 
-    // localStorage.removeItem('token');
+    localStorage.removeItem('token');
   }
   // Hangle Errors And Success
   private handleAuthSuccess(resp: AuthResponse) {
