@@ -3,7 +3,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { AuthResponse } from '@auth/interface/auth-response.interface';
 import { User } from '@auth/interface/user.interface';
-import { catchError, map, Observable, of, tap } from 'rxjs';
+import { catchError, map, Observable, of } from 'rxjs';
 import { environment } from 'src/environments/environment';
 
 type AuthStatus = 'checking' | 'authenticated' | 'not-authenticated';
@@ -31,6 +31,9 @@ export class AuthService {
   });
 
   user = computed(() => this._user());
+  isAdmin = computed(() => {
+    return this._user()?.roles.includes('admin') ?? false;
+  });
   token = computed(() => this._token());
 
   login(email: string, password: string): Observable<boolean> {
