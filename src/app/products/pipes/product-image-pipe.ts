@@ -12,6 +12,10 @@ export class ProductImagePipe implements PipeTransform {
       return './assets/images/no-image.jpg';
     }
 
+    if (typeof image === 'string' && image.startsWith('blob:')) {
+      return image;
+    }
+
     if (typeof image === 'string') {
       return `${baseUrl}/files/product/${image}`;
     }

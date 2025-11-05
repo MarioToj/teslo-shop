@@ -5,7 +5,7 @@ import {
   Product,
   ProductsResponse,
 } from '@products/interfaces/product-response.interface';
-import { Observable, of, tap } from 'rxjs';
+import { forkJoin, map, Observable, of, switchMap, tap } from 'rxjs';
 import { environment } from 'src/environments/environment.development';
 
 const baseUrl = environment.baseUrl;
@@ -16,7 +16,7 @@ interface Options {
   gender?: string;
 }
 
-const newProduct: Product = {
+const emptyProduct: Product = {
   id: 'new',
   title: '',
   price: 0,
@@ -30,9 +30,7 @@ const newProduct: Product = {
   user: {} as any,
 };
 
-@Injectable({
-  providedIn: 'root',
-})
+@Injectable({ providedIn: 'root' })
 export class ProductsService {
   private http = inject(HttpClient);
 
@@ -40,9 +38,9 @@ export class ProductsService {
   private productCache = new Map<string, Product>();
 
   getProducts(options: Options): Observable<ProductsResponse> {
-    const { gender = '', limit = 9, offset = 0 } = options;
+    const { limit = 9, offset = 0, gender = '' } = options;
 
-    const key = `${limit}-${offset}-${gender}`;
+    const key = `${limit}-${offset}-${gender}`; // 9-0-''
     if (this.productsCache.has(key)) {
       return of(this.productsCache.get(key)!);
     }
@@ -55,40 +53,34 @@ export class ProductsService {
           gender,
         },
       })
-      .pipe(tap((resp) => this.productsCache.set(key, resp)));
+      .pipe(
+        tap((resp) => console.log(resp)),
+        tap((resp) => this.productsCache.set(key, resp))
+      );
   }
 
   getProductByIdSlug(idSlug: string): Observable<Product> {
-    const key = `${idSlug}`;
-    if (this.productCache.has(key)) {
-      return of(this.productCache.get(key)!);
+    if (this.productCache.has(idSlug)) {
+      return of(this.productCache.get(idSlug)!);
     }
 
-    return this.http.get<Product>(`${baseUrl}/products/${idSlug}`).pipe(
-      tap((resp) => console.log(resp)),
-      tap((resp) => this.productCache.set(idSlug, resp))
-    );
+    return this.http
+      .get<Product>(`${baseUrl}/products/${idSlug}`)
+      .pipe(tap((product) => this.productCache.set(idSlug, product)));
   }
 
   getProductById(id: string): Observable<Product> {
     if (id === 'new') {
-      return of(newProduct);
+      return of(emptyProduct);
     }
 
-    const key = `${id}`;
-    if (this.productCache.has(key)) {
-      return of(this.productCache.get(key)!);
+    if (this.productCache.has(id)) {
+      return of(this.productCache.get(id)!);
     }
 
     return this.http
       .get<Product>(`${baseUrl}/products/${id}`)
-      .pipe(tap((resp) => this.productCache.set(id, resp)));
-  }
-
-  createProduct(productLike: Partial<Product>): Observable<Product> {
-    return this.http
-      .post<Product>(`${baseUrl}/products/`, productLike)
-      .pipe(tap((product) => this.updateProductCache(product)));
+      .pipe(tap((product) => this.productCache.set(id, product)));
   }
 
   updateProduct(
@@ -100,6 +92,12 @@ export class ProductsService {
       .pipe(tap((product) => this.updateProductCache(product)));
   }
 
+  createProduct(productLike: Partial<Product>): Observable<Product> {
+    return this.http
+      .post<Product>(`${baseUrl}/products`, productLike)
+      .pipe(tap((product) => this.updateProductCache(product)));
+  }
+
   updateProductCache(product: Product) {
     const productId = product.id;
 
@@ -107,11 +105,11 @@ export class ProductsService {
 
     this.productsCache.forEach((productResponse) => {
       productResponse.products = productResponse.products.map(
-        (currentProduct) => {
-          return currentProduct.id === productId ? product : currentProduct;
-        }
+        (currentProduct) =>
+          currentProduct.id === productId ? product : currentProduct
       );
-      console.log('Chache actualizado');
     });
+
+    console.log('Caché actualizado');
   }
 }

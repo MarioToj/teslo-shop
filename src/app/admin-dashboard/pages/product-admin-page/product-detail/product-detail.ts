@@ -1,4 +1,11 @@
-import { Component, inject, input, OnInit, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  inject,
+  input,
+  OnInit,
+  signal,
+} from '@angular/core';
 import { Product } from '@products/interfaces/product-response.interface';
 import { ProductCarousel } from '@products/components/product-carousel/product-carousel';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -6,6 +13,7 @@ import { FormUtils } from '@utils/form-utils';
 import { FormErrorLabel } from '@shared/form-error-label/form-error-label';
 import { ProductsService } from '@products/services/products.service';
 import { Router } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'product-detail',
@@ -18,6 +26,18 @@ export class ProductDetail implements OnInit {
   router = inject(Router);
 
   wasSave = signal(false);
+
+  tempImages = signal<string[]>([]);
+
+  imageFileList = signal<FileList | undefined>(undefined);
+
+  imagesToCarousel = computed(() => {
+    const currentProductImages = [
+      ...this.product().images,
+      ...this.tempImages(),
+    ];
+    return currentProductImages;
+  });
 
   fb = inject(FormBuilder);
 
@@ -47,6 +67,7 @@ export class ProductDetail implements OnInit {
 
   setFormValues(formLike: Partial<Product>) {
     this.productForm.patchValue({ tags: formLike.tags?.join(', ') });
+
     this.productForm.reset(this.product() as any);
   }
 
@@ -62,44 +83,50 @@ export class ProductDetail implements OnInit {
     this.productForm.patchValue({ sizes: curretnSizes });
   }
 
-  onSubmit() {
+  async onSubmit() {
     const isValid = this.productForm.valid;
     this.productForm.markAllAsTouched();
+
     if (!isValid) return;
-
     const formValue = this.productForm.value;
-
-    const rawTags = formValue.tags ?? '';
-    const tagString = typeof rawTags === 'string' ? rawTags : String(rawTags);
 
     const productLike: Partial<Product> = {
       ...(formValue as any),
-      tags: tagString
-        .toLowerCase()
-        .split(',')
-        .map((tag) => tag.trim())
-        .filter((tag) => tag.length > 0),
+      tags:
+        typeof formValue.tags === 'string'
+          ? formValue.tags
+              .toLowerCase()
+              .split(',')
+              .map((tag) => tag.trim())
+          : [],
     };
 
     if (this.product().id === 'new') {
-      // crear producto
-      this.productService
-        .createProduct(productLike)
-        .subscribe((createdProduct) => {
-          console.log('Producto Creado');
-          this.router.navigate(['/admin/products', createdProduct.id]);
-        });
+      // Crear producto
+      const product = await firstValueFrom(
+        this.productService.createProduct(productLike)
+      );
+
+      this.router.navigate(['/admin/products', product.id]);
     } else {
-      this.productService
-        .updateProduct(this.product().id, productLike)
-        .subscribe((pro) => {
-          console.log(pro);
-          this.wasSave.set(true);
-          setTimeout(() => {
-            console.log('timeout eje');
-            this.wasSave.set(false);
-          }, 2000);
-        });
+      await firstValueFrom(
+        this.productService.updateProduct(this.product().id, productLike)
+      );
     }
+
+    this.wasSave.set(true);
+    setTimeout(() => {
+      this.wasSave.set(false);
+    }, 3000);
+  }
+
+  onFilesChange(event: Event) {
+    const fileList = (event.target as HTMLInputElement).files;
+    this.imageFileList.set(fileList ?? undefined);
+    const imageUrls = Array.from(fileList ?? []).map((file) =>
+      URL.createObjectURL(file)
+    );
+
+    this.tempImages.set(imageUrls);
   }
 }
